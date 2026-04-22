@@ -1,16 +1,15 @@
-import os
 from flask import Flask, jsonify
+import os
 
 app = Flask(__name__)
 
-@app.route('/api/health', methods=['GET'])
+@app.route('/api/health')
 def health():
-    return jsonify({'status': 'healthy', 'service': 'drsofa-wix-automation'}), 200
+    return jsonify({'status': 'healthy', 'service': 'drsofa-wix-automation'})
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def home():
-    return jsonify({'message': 'API is running'}), 200
+    return jsonify({'message': 'API running'})
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
