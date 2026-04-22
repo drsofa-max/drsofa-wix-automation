@@ -613,31 +613,32 @@
         }
 
         // CREDENTIALS
-        function saveCredentials() {
-            const wixKey = document.getElementById('settings-wix-key').value;
-            const accountId = document.getElementById('settings-account-id').value;
-            
-            if (!wixKey || !accountId) {
-                toast('⚠️ Please fill in Wix credentials', 'error');
-                return;
-            }
-            
-            localStorage.setItem('dr_sofa_wix_key', wixKey);
-            localStorage.setItem('dr_sofa_account_id', accountId);
-            
-            toast('✅ Wix credentials saved!', 'success');
+       unction saveCredentials() {
+          const wixKey = document.getElementById('settings-wix-key').value;
+          const accountId = document.getElementById('settings-account-id').value;
+          
+          if (!wixKey || !accountId) {
+            toast('⚠️ Please fill in Wix credentials', 'error');
+            return;
+          }
+          
+          localStorage.setItem('dr_sofa_wix_key', wixKey);
+          localStorage.setItem('dr_sofa_account_id', accountId);
+          
+          toast('✅ Wix credentials saved to browser!', 'success');
         }
 
         function testOpenAI() {
-            const openaiKey = document.getElementById('settings-openai-key').value;
-            
-            if (!openaiKey || openaiKey.length < 20) {
-                toast('⚠️ Enter valid OpenAI key (starts with sk-)', 'error');
-                return;
-            }
-            
-            localStorage.setItem('dr_sofa_openai_key', openaiKey);
-            toast('✅ OpenAI key saved! Post generation ready.', 'success');
+          const openaiKey = document.getElementById('settings-openai-key').value;
+          
+          if (!openaiKey || openaiKey.length < 20) {
+            toast('⚠️ Enter valid OpenAI key (starts with sk-)', 'error');
+            return;
+          }
+          
+          localStorage.setItem('dr_sofa_openai_key', openaiKey);
+          
+          toast('✅ OpenAI key saved! Ready for image generation.', 'success');
         }
 
         function testConnection() {
@@ -710,32 +711,138 @@ Ready to move without stress? Contact us for a free quote.`;
             toast('✅ Post generated!', 'success');
             loadDashboard();
         }
-
-        // PUBLISH
-        function publishPost() {
-            if (!currentPost) {
-                toast('⚠️ Generate a post first', 'error');
-                return;
-            }
-
-            const wixKey = localStorage.getItem('dr_sofa_wix_key');
+        async function generateAIImage(title, siteInfo, callback) {
+          const openaiKey = localStorage.getItem('dr_sofa_openai_key');
+          
+          if (!openaiKey) {
+            toast('⚠️ Add OpenAI key in Settings first', 'warning');
+            return;
+          }
+          
+          try {
+            const response = await fetch('https://api.openai.com/v1/images/generations', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${openaiKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                prompt: `Professional furniture disassembly and moving service photo. High quality studio photography showing craftsman tools, sofa being disassembled, modern apartment. Clean aesthetic, well-lit background`,
+                model: 'dall-e-3',
+                n: 1,
+                size: '1024x1024',
+                quality: 'hd'
+              })
+            });
             
-            if (!wixKey) {
-                toast('⚠️ Add Wix API key in Settings', 'error');
-                showSection('settings');
-                return;
+            if (response.ok) {
+              const data = await response.json();
+              const imageUrl = data.data[0].url;
+              
+              // Add image to preview section
+              const previewSection = document.getElementById('post-preview');
+              let imageEl = previewSection.querySelector('.preview-image');
+              
+              if (!imageEl) {
+                imageEl = document.createElement('img');
+                imageEl.className = 'preview-image';
+                imageEl.style.cssText = 'max-width: 100%; border-radius: 4px; margin-bottom: 20px; display: block;';
+                previewSection.insertBefore(imageEl, previewSection.querySelector('.preview-body'));
+              }
+              
+              imageEl.src = imageUrl;
+              currentPost.image_url = imageUrl;
+              
+              if (callback) callback();
+              toast('✨ AI image generated and added to post!', 'success');
+            } else {
+              toast('❌ Image generation failed', 'error');
+              console.error(await response.json());
             }
-
-            currentPost.status = 'published';
-            const postIndex = posts.findIndex(p => p.id === currentPost.id);
-            if (postIndex >= 0) {
-                posts[postIndex].status = 'published';
-            }
-
-            loadPosts();
-            toast('✅ Post published to Wix!', 'success');
+          } catch(e) {
+            toast('❌ OpenAI error: ' + e.message, 'error');
+          }
         }
-
+        // PUBLISH
+        async function publishPost() {
+          if (!currentPost) {
+            toast('⚠️ No post to publish. Generate one first.', 'error');
+            return;
+          }
+        
+          const wixKey = localStorage.getItem('dr_sofa_wix_key');
+          const accountId = localStorage.getItem('dr_sofa_account_id');
+          
+          if (!wixKey || !accountId) {
+            toast('⚠️ Add Wix API credentials in Settings', 'error');
+            showSection('settings');
+            return;
+          }
+        
+          const publishBtn = event?.target;
+          if (publishBtn) {
+            publishBtn.disabled = true;
+            publishBtn.innerHTML = '<span class="spinner"></span> Publishing...';
+          }
+        
+          toast('🚀 Publishing post to Wix...', 'info');
+        
+          try {
+            // Publish to Wix via API
+            const response = await fetch(`https://www.wixapis.com/v1/items`, {
+              method: 'POST',
+              headers: {
+                'Authorization': wixKey,
+                'Content-Type': 'application/json',
+                'wix-account-id': accountId
+              },
+              body: JSON.stringify({
+                dataItemType: 'BlogPost',
+                dataItem: {
+                  data: {
+                    title: currentPost.title,
+                    content: currentPost.body,
+                    summary: currentPost.meta_description,
+                    coverImage: currentPost.image_url || null,
+                    published: true,
+                    publishedDate: new Date().toISOString(),
+                    slug: currentPost.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 100)
+                  }
+                }
+              })
+            });
+        
+            if (response.ok) {
+              const data = await response.json();
+              
+              // Mark as published
+              currentPost.status = 'published';
+              currentPost.wix_id = data.dataItem?.id;
+              
+              const postIndex = posts.findIndex(p => p.id === currentPost.id);
+              if (postIndex >= 0) {
+                posts[postIndex].status = 'published';
+                posts[postIndex].wix_id = data.dataItem?.id;
+              }
+              
+              loadPosts();
+              toast('✅ Post published to Wix successfully!', 'success');
+              
+            } else {
+              const errorData = await response.json();
+              toast('❌ Wix API error: ' + (errorData.message || 'Unknown error'), 'error');
+              console.error('Wix API Error:', errorData);
+            }
+          } catch(e) {
+            toast('❌ Publishing error: ' + e.message, 'error');
+            console.error('Publish error:', e);
+          }
+          
+          if (publishBtn) {
+            publishBtn.disabled = false;
+            publishBtn.innerHTML = '🚀 Publish to Wix';
+          }
+        }
         function copyPost() {
             if (!currentPost) return;
             const text = `${currentPost.title}\n\n${currentPost.meta_description}\n\n${currentPost.body}`;
@@ -811,16 +918,17 @@ Ready to move without stress? Contact us for a free quote.`;
 
         // INIT
         document.addEventListener('DOMContentLoaded', () => {
-            const savedWixKey = localStorage.getItem('dr_sofa_wix_key');
-            const savedAccountId = localStorage.getItem('dr_sofa_account_id');
-            const savedOpenaiKey = localStorage.getItem('dr_sofa_openai_key');
-            
-            if (savedWixKey) document.getElementById('settings-wix-key').value = savedWixKey;
-            if (savedAccountId) document.getElementById('settings-account-id').value = savedAccountId;
-            if (savedOpenaiKey) document.getElementById('settings-openai-key').value = savedOpenaiKey;
-            
-            testConnection();
-            loadDashboard();
+       // Load saved credentials from localStorage
+          const savedWixKey = localStorage.getItem('dr_sofa_wix_key');
+          const savedAccountId = localStorage.getItem('dr_sofa_account_id');
+          const savedOpenaiKey = localStorage.getItem('dr_sofa_openai_key');
+          
+          if (savedWixKey) document.getElementById('settings-wix-key').value = savedWixKey;
+          if (savedAccountId) document.getElementById('settings-account-id').value = savedAccountId;
+          if (savedOpenaiKey) document.getElementById('settings-openai-key').value = savedOpenaiKey;
+          
+          testConnection();
+          loadDashboard();
         });
     </script>
 </body>
