@@ -1175,27 +1175,6 @@ Ready to move without the stress? Contact us for a free, no-obligation quote. We
   toast('Demo post generated! Add API keys to enable real AI.', 'info', 4000);
 }
 
-function generateAIImage(title, siteInfo, callback) {
-  const container = document.getElementById('image-preview-container');
-  const loading = document.getElementById('image-loading');
-  const preview = document.getElementById('image-preview');
-  
-  container.classList.add('visible');
-  loading.style.display = 'flex';
-  preview.style.display = 'none';
-
-  const imageUrl = `https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80`;
-  
-  setTimeout(() => {
-    loading.style.display = 'none';
-    preview.src = imageUrl;
-    preview.style.display = 'block';
-    currentImage = imageUrl;
-    callback(imageUrl);
-    toast('✨ AI image generated!', 'success');
-  }, 1500);
-}
-
 function showPreview(post, withImage, siteInfo, topic) {
   currentPost = post;
   const preview = document.getElementById('post-preview');
@@ -1357,19 +1336,55 @@ function loadPosts() {
           <th>Site</th>
           <th>Status</th>
           <th>Created</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         ${posts.map(post => `
           <tr>
-            <td style="max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;">${post.title}</td>
+            <td style="max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;cursor:pointer;" onclick="viewPost(${post.id})">${post.title}</td>
             <td style="color:var(--text-muted);">${post.site || 'N/A'}</td>
             <td><span class="badge badge-${post.status}">${post.status.toUpperCase()}</span></td>
             <td style="color:var(--text-muted);">${new Date(post.created_at).toLocaleDateString()}</td>
+            <td style="display:flex; gap:8px;">
+              <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; background:#666; color:white; border:none; border-radius:3px; cursor:pointer;" onclick="viewPost(${post.id})">👁️ View</button>
+              ${post.status === 'draft' ? `<button class="btn btn-primary" style="padding:6px 12px; font-size:12px; background:#c41e3a; color:white; border:none; border-radius:3px; cursor:pointer;" onclick="publishFromTable(${post.id})">🚀 Publish</button>` : ''}
+              <button class="btn btn-secondary" style="padding:6px 12px; font-size:12px; background:#999; color:white; border:none; border-radius:3px; cursor:pointer;" onclick="deletePost(${post.id})">🗑️ Delete</button>
+            </td>
           </tr>
         `).join('')}
       </tbody>
     </table>`;
+}
+
+function viewPost(postId) {
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+  
+  currentPost = post;
+  document.getElementById('preview-title').textContent = post.title;
+  document.getElementById('preview-meta').textContent = '📝 ' + post.meta_description;
+  document.getElementById('preview-body').textContent = post.body;
+  document.getElementById('post-preview').classList.add('visible');
+  
+  showSection('generate');
+  setTimeout(() => document.getElementById('post-preview').scrollIntoView({ behavior: 'smooth' }), 100);
+}
+
+function publishFromTable(postId) {
+  const post = posts.find(p => p.id === postId);
+  if (!post) return;
+  
+  currentPost = post;
+  publishPost();
+}
+
+function deletePost(postId) {
+  if (confirm('Delete this post?')) {
+    posts = posts.filter(p => p.id !== postId);
+    loadPosts();
+    toast('Post deleted', 'info');
+  }
 }
 
 function filterPosts() { loadPosts(); }
