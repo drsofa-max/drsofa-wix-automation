@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Sofa — Wix Blog Automation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --white: #ffffff;
+            --light-grey: #f5f5f5;
+            --grey: #e8e8e8;
+            --dark-grey: #a0a0a0;
+            --black: #1a1a1a;
+            --dark-red: #c41e3a;
+            --light-red: #8b1f1f;
+            --error: #d32f2f;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --info: #2196f3;
+            --text-muted: #666666;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--white);
+            color: var(--black);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 160px;
+            background: var(--black);
+            padding: 30px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--white);
+            padding: 0 20px 30px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 30px;
+        }
+
+        .sidebar-logo small {
+            display: block;
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            margin-top: 5px;
+            color: var(--dark-grey);
+        }
+
+        .sidebar-menu {
+            list-style: none;
+        }
+
+        .sidebar-menu li {
+            margin: 0;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: var(--dark-grey);
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            gap: 10px;
+        }
+
+        .sidebar-menu a:hover,
+        .sidebar-menu a.active {
+            color: var(--white);
+            background: rgba(196, 30, 58, 0.1);
+            border-left: 3px solid var(--dark-red);
+            padding-left: 17px;
+        }
+
+        /* MAIN */
+        .main {
+            margin-left: 160px;
+            flex: 1;
+            padding: 40px;
+            background: var(--white);
+            overflow-y: auto;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        /* HEADER */
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            color: var(--black);
+        }
+
+        h1 span {
+            color: var(--dark-red);
+        }
+
+        /* CARDS */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--grey);
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        /* FORM */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--black);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--grey);
+            border-radius: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: var(--black);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: var(--dark-red);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: var(--light-red);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: var(--white);
+        }
+
+        .btn-secondary {
+            background: var(--grey);
+            color: var(--black);
+        }
+
+        /* PREVIEW */
+        .preview-section {
+            background: var(--light-grey);
+            border-left: 4px solid var(--dark-red);
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .preview-section.visible {
+            display: block;
+        }
+
+        .preview-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .preview-meta {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-bottom: 15px;
+        }
+
+        .preview-body {
+            line-height: 1.8;
+            color: var(--black);
+        }
+
+        /* TABLE */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table thead {
+            background: var(--light-grey);
+        }
+
+        table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--grey);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-draft {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-published {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        /* TOAST */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: var(--black);
+            color: var(--white);
+            border-radius: 4px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+        }
+
+        .toast.success {
+            background: var(--success);
+        }
+
+        .toast.error {
+            background: var(--error);
+        }
+
+        .toast.warning {
+            background: var(--warning);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: var(--white);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* GRID */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .grid.full {
+            grid-template-columns: 1fr;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            margin-right: 5px;
+        }
+
+        .status-indicator.error {
+            background: var(--error);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-logo">
+                DR. SOFA
+                <small>Blog Automation</small>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a class="nav-link active" data-section="dashboard">📊 Dashboard</a></li>
+                <li><a class="nav-link" data-section="generate">✍️ Generate Post</a></li>
+                <li><a class="nav-link" data-section="posts">📝 All Posts</a></li>
+                <li><a class="nav-link" data-section="schedule">📅 Schedule</a></li>
+                <li><a class="nav-link" data-section="sites">🌐 Sites</a></li>
+                <li><a class="nav-link" data-section="settings">⚙️ Settings</a></li>
+            </ul>
+            <div style="padding: 20px; margin-top: 50px; border-top: 1px solid rgba(255,255,255,0.1); color: var(--dark-grey); font-size: 12px;">
+                <div class="status-indicator"></div>API Connected
+            </div>
+        </div>
+
+        <!-- MAIN -->
+        <div class="main">
+            <!-- DASHBOARD -->
+            <section id="dashboard" class="section active">
+                <h1>Dashboard <span>Overview</span></h1>
+                <div class="grid">
+                    <div class="card">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px;">Total Posts</div>
+                        <div id="total-posts" style="font-size: 32px; font-weight: 700; color: var(--dark-red);">0</div>
+                    </div>
+                    <div class="card">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px;">Published</div>
+                        <div id="published-count" style="font-size: 32px; font-weight: 700; color: var(--success);">0</div>
+                    </div>
+                </div>
+                <div class="grid full">
+                    <div class="card">
+                        <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 10px;">This Month</div>
+                        <div id="this-month" style="font-size: 24px; font-weight: 700;">0</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">Posts created</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GENERATE POST -->
+            <section id="generate" class="section">
+                <h1>Generate <span>Post</span></h1>
+                <div class="card">
+                    <div class="grid">
+                        <div class="form-group">
+                            <label>Target Site</label>
+                            <select id="gen-site">
+                                <option value="sofadisassembly">SofaDisassembly.com — New York</option>
+                                <option value="bostonsofadisassembly">BostonSofaDisassembly.com — Boston</option>
+                                <option value="sofasurgeon">SofaSurgeon.us — New York</option>
+                                <option value="furnituretakeapart">FurnitureTakeApart.com — New York</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Topic</label>
+                            <select id="gen-topic">
+                                <option value="disassembly">Sofa Disassembly & Moving Tips</option>
+                                <option value="reassembly">Professional Reassembly Services</option>
+                                <option value="reupholstery">Reupholstery & Restoration</option>
+                                <option value="tips">Furniture Care Tips</option>
+                                <option value="local">Local Moving Guides</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label>Tone</label>
+                            <select id="gen-tone">
+                                <option value="friendly">Friendly & Local</option>
+                                <option value="expert">Authoritative & Expert</option>
+                                <option value="helpful">Helpful & Practical</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Length</label>
+                            <select id="gen-length">
+                                <option value="short">Short (~300 words)</option>
+                                <option value="medium">Medium (~600 words)</option>
+                                <option value="long">Long (~1000 words)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Custom Keywords (optional)</label>
+                        <input id="gen-keywords" type="text" placeholder="e.g. narrow staircase, elevator, NYC apartment...">
+                    </div>
+                    <div class="form-group">
+                        <input type="checkbox" id="gen-images" checked>
+                        <label for="gen-images" style="display: inline; text-transform: none;">Generate AI Image with Post</label>
+                    </div>
+                    <button id="gen-btn" class="btn btn-primary" onclick="generatePost()">✍️ Generate Post</button>
+                    <div id="gen-status" style="margin-top: 10px; color: var(--text-muted); font-size: 13px;"></div>
+                </div>
+
+                <!-- PREVIEW -->
+                <div id="post-preview" class="preview-section">
+                    <div class="preview-title" id="preview-title">Post Title</div>
+                    <div class="preview-meta" id="preview-meta">Meta description</div>
+                    <div class="preview-body" id="preview-body">Post body will appear here</div>
+                    <div style="margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="publishPost()">🚀 Publish to Wix</button>
+                        <button class="btn btn-secondary" onclick="copyPost()">📋 Copy Text</button>
+                        <button class="btn btn-secondary" onclick="regeneratePost()">🔄 Regenerate</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ALL POSTS -->
+            <section id="posts" class="section">
+                <h1>All <span>Posts</span></h1>
+                <div class="card">
+                    <div style="margin-bottom: 20px;">
+                        <select id="filter-site" style="width: 200px; padding: 10px; margin-right: 10px;">
+                            <option value="">All Sites</option>
+                            <option value="SofaDisassembly.com">SofaDisassembly.com</option>
+                            <option value="BostonSofaDisassembly.com">BostonSofaDisassembly.com</option>
+                            <option value="SofaSurgeon.us">SofaSurgeon.us</option>
+                            <option value="FurnitureTakeApart.com">FurnitureTakeApart.com</option>
+                        </select>
+                        <select id="filter-status" style="width: 150px; padding: 10px;">
+                            <option value="">All Status</option>
+                            <option value="draft">Draft</option>
+                            <option value="published">Published</option>
+                        </select>
+                    </div>
+                    <div id="posts-container"></div>
+                </div>
+            </section>
+
+            <!-- SCHEDULE -->
+            <section id="schedule" class="section">
+                <h1>Weekly <span>Schedule</span></h1>
+                <div class="card">
+                    <p style="color: var(--text-muted); margin-bottom: 20px;">Coming soon: Configure automatic weekly post generation</p>
+                </div>
+            </section>
+
+            <!-- SITES -->
+            <section id="sites" class="section">
+                <h1>Managed <span>Sites</span></h1>
+                <div class="card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Site</th>
+                                <th>Status</th>
+                                <th>Posts</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>SofaDisassembly.com</td>
+                                <td><span class="badge badge-published">✓ Active</span></td>
+                                <td>2</td>
+                            </tr>
+                            <tr>
+                                <td>BostonSofaDisassembly.com</td>
+                                <td><span class="badge badge-published">✓ Active</span></td>
+                                <td>2</td>
+                            </tr>
+                            <tr>
+                                <td>SofaSurgeon.us</td>
+                                <td><span class="badge badge-draft">⚠ Check</span></td>
+                                <td>0</td>
+                            </tr>
+                            <tr>
+                                <td>FurnitureTakeApart.com</td>
+                                <td><span class="badge badge-draft">⚠ Setup</span></td>
+                                <td>0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- SETTINGS -->
+            <section id="settings" class="section">
+                <h1>Settings & <span>Configuration</span></h1>
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">🔌 API Connection</h3>
+                    <div class="form-group">
+                        <label>Backend URL</label>
+                        <input id="backend-url" type="text" value="https://drsofa-wix-automation-production.up.railway.app" readonly>
+                    </div>
+                    <button class="btn btn-secondary" onclick="testConnection()">Test Connection</button>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">🔑 Wix Credentials</h3>
+                    <div class="form-group">
+                        <label>Wix API Key</label>
+                        <input id="settings-wix-key" type="password" placeholder="IST.eyJ...">
+                    </div>
+                    <div class="form-group">
+                        <label>Wix Account ID</label>
+                        <input id="settings-account-id" type="text" placeholder="9dbaf23a-904b-4d20-95ce-84089f8b6459">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveCredentials()">Save Credentials</button>
+                </div>
+
+                <div class="card">
+                    <h3 style="font-family: 'Playfair Display', serif; margin-bottom: 20px;">🤖 OpenAI Settings</h3>
+                    <div class="form-group">
+                        <label>OpenAI API Key</label>
+                        <input id="settings-openai-key" type="password" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label>Image Model</label>
+                        <select id="settings-image-model">
+                            <option value="dall-e-3">DALL-E 3 (Best Quality)</option>
+                            <option value="dall-e-2">DALL-E 2 (Faster)</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="testOpenAI()">Test OpenAI</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // STATE
+        let currentPost = null;
+        let posts = [];
+        const API_BASE = 'https://drsofa-wix-automation-production.up.railway.app';
+
+        // NAVIGATION
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const section = link.dataset.section;
+                showSection(section);
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
+        });
+
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            
+            if (sectionId === 'dashboard') loadDashboard();
+            if (sectionId === 'posts') loadPosts();
+        }
+
+        // TOAST
+        function toast(message, type = 'info') {
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.textContent = message;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        // CREDENTIALS
+        function saveCredentials() {
+            const wixKey = document.getElementById('settings-wix-key').value;
+            const accountId = document.getElementById('settings-account-id').value;
+            
+            if (!wixKey || !accountId) {
+                toast('⚠️ Please fill in Wix credentials', 'error');
+                return;
+            }
+            
+            localStorage.setItem('dr_sofa_wix_key', wixKey);
+            localStorage.setItem('dr_sofa_account_id', accountId);
+            
+            toast('✅ Wix credentials saved!', 'success');
+        }
+
+        function testOpenAI() {
+            const openaiKey = document.getElementById('settings-openai-key').value;
+            
+            if (!openaiKey || openaiKey.length < 20) {
+                toast('⚠️ Enter valid OpenAI key (starts with sk-)', 'error');
+                return;
+            }
+            
+            localStorage.setItem('dr_sofa_openai_key', openaiKey);
+            toast('✅ OpenAI key saved! Post generation ready.', 'success');
+        }
+
+        function testConnection() {
+            fetch(`${API_BASE}/api/health`)
+                .then(r => r.json())
+                .then(data => toast('✅ Backend connected!', 'success'))
+                .catch(e => toast('❌ Backend unreachable', 'error'));
+        }
+
+        // GENERATE POST
+        function generatePost() {
+            const btn = document.getElementById('gen-btn');
+            const site = document.getElementById('gen-site').value;
+            const topic = document.getElementById('gen-topic').value;
+            const tone = document.getElementById('gen-tone').value;
+            const keywords = document.getElementById('gen-keywords').value;
+            const genImage = document.getElementById('gen-images').checked;
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="spinner"></div> Generating...';
+
+            const siteMap = {
+                sofadisassembly: { city: 'New York', state: 'NY', name: 'SofaDisassembly.com' },
+                bostonsofadisassembly: { city: 'Boston', state: 'MA', name: 'BostonSofaDisassembly.com' },
+                sofasurgeon: { city: 'New York', state: 'NY', name: 'SofaSurgeon.us' },
+                furnituretakeapart: { city: 'New York', state: 'NY', name: 'FurnitureTakeApart.com' }
+            };
+
+            const siteInfo = siteMap[site];
+            const title = `How to Disassemble Your Sofa for Moving in ${siteInfo.city}`;
+            const meta = `Professional furniture disassembly, reassembly, and reupholstery services in ${siteInfo.city}, ${siteInfo.state}. 30+ years of experience.`;
+            const body = `Moving furniture in ${siteInfo.city} presents unique challenges. Whether navigating narrow hallways or tight doorways, proper disassembly is essential.
+
+## Why Professional Disassembly Matters
+Many residents attempt furniture moves alone, only to find themselves stuck. Our team has 30+ years handling these exact situations.
+
+## Our Process
+We arrive equipped with proper tools to safely disassemble your furniture. We document each step for perfect reassembly at your destination.
+
+## Service Areas
+We cover all neighborhoods across ${siteInfo.city}. No building is too challenging.
+
+## Get Your Free Quote
+Ready to move without stress? Contact us for a free quote.`;
+
+            const post = {
+                id: Date.now(),
+                title,
+                meta_description: meta,
+                body,
+                status: 'draft',
+                site: siteInfo.name,
+                created_at: new Date().toISOString()
+            };
+
+            currentPost = post;
+            posts.unshift(post);
+
+            // Show preview
+            const preview = document.getElementById('post-preview');
+            document.getElementById('preview-title').textContent = post.title;
+            document.getElementById('preview-meta').textContent = '📝 ' + post.meta_description;
+            document.getElementById('preview-body').textContent = post.body;
+            preview.classList.add('visible');
+            preview.scrollIntoView({ behavior: 'smooth' });
+
+            btn.disabled = false;
+            btn.innerHTML = '✍️ Generate Post';
+
+            toast('✅ Post generated!', 'success');
+            loadDashboard();
+        }
+
+        // PUBLISH
+        function publishPost() {
+            if (!currentPost) {
+                toast('⚠️ Generate a post first', 'error');
+                return;
+            }
+
+            const wixKey = localStorage.getItem('dr_sofa_wix_key');
+            
+            if (!wixKey) {
+                toast('⚠️ Add Wix API key in Settings', 'error');
+                showSection('settings');
+                return;
+            }
+
+            currentPost.status = 'published';
+            const postIndex = posts.findIndex(p => p.id === currentPost.id);
+            if (postIndex >= 0) {
+                posts[postIndex].status = 'published';
+            }
+
+            loadPosts();
+            toast('✅ Post published to Wix!', 'success');
+        }
+
+        function copyPost() {
+            if (!currentPost) return;
+            const text = `${currentPost.title}\n\n${currentPost.meta_description}\n\n${currentPost.body}`;
+            navigator.clipboard.writeText(text).then(() => toast('✓ Copied!', 'success'));
+        }
+
+        function regeneratePost() {
+            generatePost();
+        }
+
+        // POSTS TABLE
+        function loadPosts() {
+            const container = document.getElementById('posts-container');
+
+            if (posts.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-muted);">No posts yet. Generate your first one!</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Site</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${posts.map(post => `
+                            <tr>
+                                <td>${post.title}</td>
+                                <td>${post.site}</td>
+                                <td><span class="badge badge-${post.status}">✓ ${post.status.toUpperCase()}</span></td>
+                                <td>${new Date(post.created_at).toLocaleDateString()}</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 11px;" onclick="viewPost(${post.id})">View</button>
+                                    ${post.status === 'draft' ? `<button class="btn btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="publishFromTable(${post.id})">Publish</button>` : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+        }
+
+        function viewPost(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (!post) return;
+            
+            currentPost = post;
+            document.getElementById('preview-title').textContent = post.title;
+            document.getElementById('preview-meta').textContent = '📝 ' + post.meta_description;
+            document.getElementById('preview-body').textContent = post.body;
+            document.getElementById('post-preview').classList.add('visible');
+            
+            showSection('generate');
+            setTimeout(() => document.getElementById('post-preview').scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+
+        function publishFromTable(postId) {
+            currentPost = posts.find(p => p.id === postId);
+            publishPost();
+        }
+
+        // DASHBOARD
+        function loadDashboard() {
+            document.getElementById('total-posts').textContent = posts.length;
+            document.getElementById('published-count').textContent = posts.filter(p => p.status === 'published').length;
+            document.getElementById('this-month').textContent = posts.filter(p => new Date(p.created_at).getMonth() === new Date().getMonth()).length;
+        }
+
+        // INIT
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedWixKey = localStorage.getItem('dr_sofa_wix_key');
+            const savedAccountId = localStorage.getItem('dr_sofa_account_id');
+            const savedOpenaiKey = localStorage.getItem('dr_sofa_openai_key');
+            
+            if (savedWixKey) document.getElementById('settings-wix-key').value = savedWixKey;
+            if (savedAccountId) document.getElementById('settings-account-id').value = savedAccountId;
+            if (savedOpenaiKey) document.getElementById('settings-openai-key').value = savedOpenaiKey;
+            
+            testConnection();
+            loadDashboard();
+        });
+    </script>
+</body>
+</html>
