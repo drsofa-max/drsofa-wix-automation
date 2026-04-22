@@ -12,4 +12,5 @@ def home():
     return jsonify({'message': 'API is running'}), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
+    port = int(os.getenv('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
