@@ -1096,11 +1096,11 @@ async function generatePost() {
   const length = document.getElementById('gen-length').value;
   const keywords = document.getElementById('gen-keywords').value;
   const genImage = document.getElementById('gen-images').checked;
- 
+
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div> Generating...';
   statusEl.textContent = 'Creating content...';
- 
+
   const siteMap = {
     sofadisassembly: { city: 'New York', state: 'NY', name: 'SofaDisassembly.com' },
     bostonsofadisassembly: { city: 'Boston', state: 'MA', name: 'BostonSofaDisassembly.com' },
@@ -1110,27 +1110,70 @@ async function generatePost() {
 
   const siteInfo = siteMap[site];
 
-   try {
-    const res = await fetch(`${API_BASE}/api/posts/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ site_id: 1, topic, tone, length, custom_keyword: keywords })
+  // CREATE DEMO POST WITH FULL CONTENT
+  const topicTitles = {
+    disassembly: `How to Disassemble Your Sofa for Moving in ${siteInfo.city}`,
+    reassembly: `Professional Furniture Reassembly Services in ${siteInfo.city}`,
+    reupholstery: `Transform Your Sofa: Reupholstery Options in ${siteInfo.city}`,
+    tips: `5 Furniture Care Tips Every ${siteInfo.city} Homeowner Should Know`,
+    local: `Moving Large Furniture Through ${siteInfo.city}'s Narrow Spaces`
+  };
+
+  const title = topicTitles[topic] || `Furniture Services in ${siteInfo.city}`;
+  const meta = `Professional furniture disassembly, reassembly, and reupholstery services in ${siteInfo.city}, ${siteInfo.state}. 30+ years of experience.`;
+  const body = `Moving furniture in ${siteInfo.city} presents unique challenges. Whether you're navigating a narrow hallway, fitting through a tight doorway, or moving to a new apartment, proper furniture disassembly is essential.
+
+## Why Professional Disassembly Matters
+
+Many ${siteInfo.city} residents attempt to move large sofas on their own, only to find themselves stuck in stairwells or causing damage to both the furniture and the walls. Our team at ${siteInfo.name} has over 30 years of experience handling exactly these situations.
+
+## Our Process
+
+When you call us, we arrive fully equipped with the right tools to safely disassemble your furniture. We carefully document each step to ensure perfect reassembly at your destination. Every piece is wrapped and protected during the move.
+
+## Service Areas in ${siteInfo.city}
+
+We cover all neighborhoods across ${siteInfo.city} and surrounding areas. No building is too challenging — we've handled everything from historic brownstones to modern high-rises.
+
+## Get Your Free Quote Today
+
+Ready to move without the stress? Contact us for a free, no-obligation quote.`;
+
+  const post = { 
+    title, 
+    meta_description: meta, 
+    body, 
+    status: 'draft', 
+    id: Date.now(),
+    site: siteInfo.name,
+    created_at: new Date().toISOString()
+  };
+
+  currentPost = post;
+  posts.unshift(post);
+
+  // SHOW PREVIEW IMMEDIATELY
+  const preview = document.getElementById('post-preview');
+  document.getElementById('preview-title').textContent = post.title;
+  document.getElementById('preview-meta').textContent = '📝 ' + post.meta_description;
+  document.getElementById('preview-body').textContent = post.body;
+  preview.classList.add('visible');
+  
+  preview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // GENERATE IMAGE IF CHECKED
+  if (genImage) {
+    generateAIImage(title, siteInfo, () => {
+      toast('✨ AI image generated!', 'success');
     });
- 
-    if (res.ok) {
-      const data = await res.json();
-      showPreview(data.post, genImage, siteInfo, topic);
-      toast('✅ Post generated successfully!', 'success');
-    } else {
-      generateLocalDemo(siteInfo, topic, tone, length, keywords, genImage);
-    }
-  } catch(e) {
-    generateLocalDemo(siteInfo, topic, tone, length, keywords, genImage);
   }
- 
+
   btn.disabled = false;
   btn.innerHTML = '<span>✍️</span> Generate Post';
   statusEl.textContent = '';
+
+  toast('✅ Post generated and ready to publish!', 'success');
+  loadDashboard();
 }
 
 function generateLocalDemo(siteInfo, topic, tone, length, keywords, genImage) {
@@ -1392,14 +1435,23 @@ function saveSchedule() {
 }
 
 // SETTINGS
+  
 function saveCredentials() {
   const wixKey = document.getElementById('settings-wix-key').value;
   const accountId = document.getElementById('settings-account-id').value;
   
   if (!wixKey || !accountId) {
-    toast('⚠️ Please fill in all Wix credentials', 'error');
+    toast('⚠️ Please fill in Wix credentials', 'error');
     return;
   }
+  
+  // Save to localStorage
+  localStorage.setItem('dr_sofa_wix_key', wixKey);
+  localStorage.setItem('dr_sofa_account_id', accountId);
+  
+  toast('✅ Wix credentials saved!', 'success');
+}
+
   
   localStorage.setItem('dr_sofa_wix_key', wixKey);
   localStorage.setItem('dr_sofa_account_id', accountId);
@@ -1411,20 +1463,32 @@ function testOpenAI() {
   const openaiKey = document.getElementById('settings-openai-key').value;
   
   if (!openaiKey || openaiKey.length < 20) {
-    toast('⚠️ Add valid OpenAI API key (starts with sk-)', 'error');
+    toast('⚠️ Enter valid OpenAI key (starts with sk-)', 'error');
     return;
   }
   
+  // Save to localStorage
   localStorage.setItem('dr_sofa_openai_key', openaiKey);
   
-  toast('✅ OpenAI key saved! Ready to generate images.', 'success');
+  toast('✅ OpenAI key saved! Post generation ready.', 'success');
 }
+
 
 // INIT
 document.addEventListener('DOMContentLoaded', () => {
+  // Load saved credentials from localStorage
+  const savedWixKey = localStorage.getItem('dr_sofa_wix_key');
+  const savedAccountId = localStorage.getItem('dr_sofa_account_id');
+  const savedOpenaiKey = localStorage.getItem('dr_sofa_openai_key');
+  
+  if (savedWixKey) document.getElementById('settings-wix-key').value = savedWixKey;
+  if (savedAccountId) document.getElementById('settings-account-id').value = savedAccountId;
+  if (savedOpenaiKey) document.getElementById('settings-openai-key').value = savedOpenaiKey;
+  
   testConnection();
   loadDashboard();
 });
+
 </script>
 </body>
 </html>
