@@ -1242,6 +1242,8 @@ async function generateAIImage(title, siteInfo, callback) {
   }
 }
 
+// UPDATED publishPost() function that calls BACKEND instead of Wix directly
+
 async function publishPost() {
   if (!currentPost) {
     toast('⚠️ Generate a post first', 'error');
@@ -1260,48 +1262,40 @@ async function publishPost() {
   toast('🚀 Publishing to Wix...', 'info');
 
   try {
-    const response = await fetch(`https://www.wixapis.com/v1/items`, {
+    // CALL BACKEND INSTEAD OF DIRECT WIX API (avoids CORS)
+    const response = await fetch(`${API_BASE}/api/posts/publish`, {
       method: 'POST',
-      headers: {
-        'Authorization': wixKey,
-        'Content-Type': 'application/json',
-        'wix-account-id': accountId
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        dataItemType: 'BlogPost',
-        dataItem: {
-          data: {
-            title: currentPost.title,
-            content: currentPost.body,
-            summary: currentPost.meta_description,
-            coverImage: currentPost.image_url || '',
-            published: true,
-            publishedDate: new Date().toISOString(),
-            slug: currentPost.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 100)
-          }
-        }
+        wix_key: wixKey,
+        account_id: accountId,
+        title: currentPost.title,
+        body: currentPost.body,
+        meta_description: currentPost.meta_description
       })
     });
 
-    if (response.ok) {
-      const data = await response.json();
+    const data = await response.json();
+
+    if (response.ok && data.success) {
       currentPost.status = 'published';
-      currentPost.wix_id = data.dataItem?.id;
+      currentPost.wix_id = data.data?.id;
       
       const idx = posts.findIndex(p => p.id === currentPost.id);
       if (idx >= 0) {
         posts[idx].status = 'published';
-        posts[idx].wix_id = data.dataItem?.id;
+        posts[idx].wix_id = data.data?.id;
       }
       
       loadPosts();
-      toast('✅ Post published to Wix!', 'success');
+      toast('✅ Post published to Wix successfully!', 'success');
     } else {
-      const err = await response.json();
-      toast('❌ Wix error: ' + (err.message || 'Failed'), 'error');
+      toast('❌ Wix error: ' + (data.error || 'Failed to publish'), 'error');
+      console.error('Publish error:', data);
     }
   } catch(e) {
     toast('❌ Error: ' + e.message, 'error');
+    console.error('Publish error:', e);
   }
 }
 
