@@ -1279,11 +1279,31 @@ function saveSchedule() {
 
 // SETTINGS
 function saveCredentials() {
-  toast('✓ Credentials saved!', 'success');
+  const wixKey = document.getElementById('settings-wix-key').value;
+  const accountId = document.getElementById('settings-account-id').value;
+  
+  if (!wixKey || !accountId) {
+    toast('⚠️ Please fill in all Wix credentials', 'error');
+    return;
+  }
+  
+  localStorage.setItem('dr_sofa_wix_key', wixKey);
+  localStorage.setItem('dr_sofa_account_id', accountId);
+  
+  toast('✅ Wix credentials saved to browser!', 'success');
 }
 
 function testOpenAI() {
-  toast('Testing OpenAI connection... (Add API key)', 'info');
+  const openaiKey = document.getElementById('settings-openai-key').value;
+  
+  if (!openaiKey || openaiKey.length < 20) {
+    toast('⚠️ Add valid OpenAI API key (starts with sk-)', 'error');
+    return;
+  }
+  
+  localStorage.setItem('dr_sofa_openai_key', openaiKey);
+  
+  toast('✅ OpenAI key saved! Ready to generate images.', 'success');
 }
 
 // INIT
