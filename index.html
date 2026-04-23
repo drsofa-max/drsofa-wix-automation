@@ -1252,7 +1252,8 @@ async function publishPost() {
 
   const wixKey = localStorage.getItem('dr_sofa_wix_key');
   const accountId = localStorage.getItem('dr_sofa_account_id');
-  
+  const siteId = localStorage.getItem('dr_sofa_site_id');
+
   if (!wixKey || !accountId) {
     toast('⚠️ Add Wix credentials in Settings', 'error');
     showSection('settings');
@@ -1269,6 +1270,7 @@ async function publishPost() {
       body: JSON.stringify({
         wix_key: wixKey,
         account_id: accountId,
+        site_id: siteId,
         title: currentPost.title,
         body: currentPost.body,
         meta_description: currentPost.meta_description
@@ -1280,13 +1282,13 @@ async function publishPost() {
     if (response.ok && data.success) {
       currentPost.status = 'published';
       currentPost.wix_id = data.data?.id;
-      
+
       const idx = posts.findIndex(p => p.id === currentPost.id);
       if (idx >= 0) {
         posts[idx].status = 'published';
         posts[idx].wix_id = data.data?.id;
       }
-      
+
       loadPosts();
       toast('✅ Post published to Wix successfully!', 'success');
     } else {
