@@ -68,7 +68,7 @@ def publish_post():
         }
 
         payload = {
-            "post": {
+            "draftPost": {
                 "title": title,
                 "richContent": {"nodes": nodes},
                 "membersOnly": False,
