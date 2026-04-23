@@ -19,6 +19,44 @@ CORS(app, resources={
 def health():
     return jsonify({'status': 'healthy', 'service': 'drsofa-wix-automation'})
 
+@app.route('/api/wix/sites', methods=['POST', 'OPTIONS'])
+def list_wix_sites():
+    """List all Wix sites for the account to help find the correct site ID"""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    data = request.get_json()
+    wix_key = (os.getenv('WIX_API_KEY') or data.get('wix_key') or '').strip()
+    account_id = (os.getenv('WIX_ACCOUNT_ID') or data.get('account_id') or '').strip()
+
+    if not wix_key or not account_id:
+        return jsonify({'error': 'Missing credentials'}), 400
+
+    headers = {
+        'Authorization': wix_key,
+        'Content-Type': 'application/json',
+        'wix-account-id': account_id
+    }
+
+    try:
+        response = requests.get(
+            'https://www.wixapis.com/site-list/v2/sites',
+            headers=headers,
+            timeout=15
+        )
+        try:
+            result = response.json()
+        except Exception:
+            result = {'raw': response.text}
+
+        return jsonify({
+            'status_code': response.status_code,
+            'sites': result
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/posts/publish', methods=['POST', 'OPTIONS'])
 def publish_post():
     """Publish post to Wix (backend handles CORS)"""
@@ -117,17 +155,18 @@ def publish_post():
                     'data': {}
                 })
         else:
-            # Try to parse error response
             try:
                 error_data = response.json()
                 error_msg = error_data.get('message') or error_data.get('error') or str(error_data)
-            except:
+            except Exception:
+                error_data = {}
                 error_msg = response.text if response.text else f'HTTP {response.status_code}'
 
             return jsonify({
                 'error': f'Wix API Error: {error_msg}',
                 'status_code': response.status_code,
                 'url': wix_url,
+                'wix_response': error_data,
                 'headers_sent': {k: v for k, v in headers.items() if k != 'Authorization'}
             }), response.status_code
 

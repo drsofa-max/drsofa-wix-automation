@@ -1004,9 +1004,11 @@
             <input type="text" id="settings-site-id" placeholder="e.g. a1b2c3d4-...">
           </div>
         </div>
-        <div style="margin-top:20px;">
+        <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="saveCredentials()">Save Credentials</button>
+          <button class="btn btn-secondary" onclick="listWixSites()">Find My Site IDs</button>
         </div>
+        <div id="sites-result" style="margin-top:16px; display:none;"></div>
       </div>
 
       <div class="card">
@@ -1419,6 +1421,60 @@ function saveCredentials() {
   localStorage.setItem("dr_sofa_account_id", accountId);
   if (siteId) localStorage.setItem("dr_sofa_site_id", siteId);
   toast('✅ Wix credentials saved!', 'success');
+}
+
+async function listWixSites() {
+  const wixKey = document.getElementById("settings-wix-key").value || localStorage.getItem("dr_sofa_wix_key");
+  const accountId = document.getElementById("settings-account-id").value || localStorage.getItem("dr_sofa_account_id");
+  const resultEl = document.getElementById("sites-result");
+
+  if (!wixKey || !accountId) {
+    toast("⚠️ Enter Wix API Key and Account ID first", "error");
+    return;
+  }
+
+  resultEl.style.display = "block";
+  resultEl.innerHTML = '<p style="color:#aaa">Loading sites...</p>';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/wix/sites`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wix_key: wixKey, account_id: accountId })
+    });
+    const data = await res.json();
+
+    if (data.sites && data.sites.sites && data.sites.sites.length > 0) {
+      const rows = data.sites.sites.map(s => {
+        const sid = s.id || s.metaSiteId || '—';
+        const name = s.displayName || s.name || s.namespace || '—';
+        return `<tr>
+          <td style="padding:6px 10px;">${name}</td>
+          <td style="padding:6px 10px; font-family:monospace; font-size:12px;">${sid}</td>
+          <td style="padding:6px 10px;">
+            <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px;"
+              onclick="document.getElementById('settings-site-id').value='${sid}'; toast('Site ID set!','success')">
+              Use this
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+      resultEl.innerHTML = `
+        <p style="color:#aaa; margin-bottom:8px;">Your Wix sites — click "Use this" next to the one that has the Blog app:</p>
+        <table style="width:100%; border-collapse:collapse; background:#1a1a2e; border-radius:8px; overflow:hidden;">
+          <thead><tr style="background:#2a2a4e;">
+            <th style="padding:6px 10px; text-align:left; color:#aaa;">Site Name</th>
+            <th style="padding:6px 10px; text-align:left; color:#aaa;">Site ID</th>
+            <th style="padding:6px 10px;"></th>
+          </tr></thead>
+          <tbody style="color:#ddd;">${rows}</tbody>
+        </table>`;
+    } else {
+      resultEl.innerHTML = `<pre style="color:#f87171; font-size:12px; white-space:pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<p style="color:#f87171;">Error: ${err.message}</p>`;
+  }
 }
 
 function testOpenAI() {
