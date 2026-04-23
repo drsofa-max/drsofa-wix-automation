@@ -26,15 +26,15 @@ def publish_post():
         return '', 204
 
     data = request.get_json()
-    wix_key = data.get('wix_key')
-    account_id = data.get('account_id')
+    wix_key = os.getenv('WIX_API_KEY')
+    account_id = os.getenv('WIX_ACCOUNT_ID')
     site_id = data.get('site_id')
     title = data.get('title')
     body = data.get('body')
     meta = data.get('meta_description', '')
 
     if not wix_key or not account_id:
-        return jsonify({'error': 'Missing Wix credentials'}), 400
+        return jsonify({'error': 'Missing Wix credentials: WIX_API_KEY and WIX_ACCOUNT_ID environment variables must be set'}), 400
 
     try:
         # Convert body to Wix rich content format
