@@ -774,6 +774,12 @@
         <div class="post-preview-meta" id="preview-meta"></div>
         <div class="post-preview-body" id="preview-body"></div>
         <div class="post-actions">
+          <select id="publish-site-select" style="padding:10px 14px; border-radius:8px; background:#1a1a2e; color:#fff; border:1px solid #333; font-size:14px;">
+            <option value="sofadisassembly">SofaDisassembly.com</option>
+            <option value="bostonsofadisassembly">BostonSofaDisassembly.com</option>
+            <option value="sofasurgeon">SofaSurgeon.us</option>
+            <option value="furnituretakeapart">FurnitureTakeApart.com</option>
+          </select>
           <button class="btn btn-primary" onclick="publishPost()">🚀 Publish to Wix</button>
           <button class="btn btn-secondary" onclick="copyPost()">⎘ Copy Text</button>
           <button class="btn btn-secondary" onclick="regeneratePost()">↻ Regenerate</button>
@@ -995,13 +1001,30 @@
             <label>Wix API Key</label>
             <input type="password" id="settings-wix-key" placeholder="IST.eyJ...">
           </div>
-          <div class="form-group">
+          <div class="form-group full">
             <label>Wix Account ID</label>
             <input type="text" id="settings-account-id" value="9dbaf23a-904b-4d20-95ce-84089f8b6459">
           </div>
-          <div class="form-group">
-            <label>Wix Site ID</label>
-            <input type="text" id="settings-site-id" placeholder="e.g. a1b2c3d4-...">
+        </div>
+        <div style="margin-top:20px;">
+          <div class="card-title" style="font-size:14px; margin-bottom:12px;">Site IDs — paste each site's ID below</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>SofaDisassembly.com</label>
+              <input type="text" id="site-id-sofadisassembly" placeholder="a1b2c3d4-...">
+            </div>
+            <div class="form-group">
+              <label>BostonSofaDisassembly.com</label>
+              <input type="text" id="site-id-bostonsofadisassembly" placeholder="a1b2c3d4-...">
+            </div>
+            <div class="form-group">
+              <label>SofaSurgeon.us</label>
+              <input type="text" id="site-id-sofasurgeon" placeholder="a1b2c3d4-...">
+            </div>
+            <div class="form-group">
+              <label>FurnitureTakeApart.com</label>
+              <input type="text" id="site-id-furnituretakeapart" placeholder="a1b2c3d4-...">
+            </div>
           </div>
         </div>
         <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
@@ -1260,7 +1283,8 @@ async function publishPost() {
 
   const wixKey = localStorage.getItem('dr_sofa_wix_key');
   const accountId = localStorage.getItem('dr_sofa_account_id');
-  const siteId = localStorage.getItem('dr_sofa_site_id');
+  const selectedSite = (document.getElementById('publish-site-select') || {}).value || 'sofadisassembly';
+  const siteId = getSiteId(selectedSite);
 
   if (!wixKey || !accountId) {
     toast('⚠️ Add Wix credentials in Settings', 'error');
@@ -1268,11 +1292,15 @@ async function publishPost() {
     return;
   }
 
-  toast('🚀 Publishing to Wix...', 'info');
+  if (!siteId) {
+    toast(`⚠️ No Site ID saved for ${selectedSite} — add it in Settings`, 'error');
+    showSection('settings');
+    return;
+  }
+
+  toast(`🚀 Publishing to ${selectedSite}...`, 'info');
 
   try {
-    // CALL BACKEND INSTEAD OF DIRECT WIX API (avoids CORS)
-    console.log('Publishing to:', `${API_BASE}/api/posts/publish`);
     const response = await fetch(`${API_BASE}/api/posts/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1410,7 +1438,6 @@ function saveSchedule() {
 function saveCredentials() {
   const wixKey = document.getElementById("settings-wix-key").value;
   const accountId = document.getElementById("settings-account-id").value;
-  const siteId = document.getElementById("settings-site-id").value;
 
   if (!wixKey || !accountId) {
     toast("⚠️ Fill in Wix API Key and Account ID", "error");
@@ -1419,8 +1446,18 @@ function saveCredentials() {
 
   localStorage.setItem("dr_sofa_wix_key", wixKey);
   localStorage.setItem("dr_sofa_account_id", accountId);
-  if (siteId) localStorage.setItem("dr_sofa_site_id", siteId);
-  toast('✅ Wix credentials saved!', 'success');
+
+  const siteKeys = ['sofadisassembly', 'bostonsofadisassembly', 'sofasurgeon', 'furnituretakeapart'];
+  siteKeys.forEach(key => {
+    const val = (document.getElementById(`site-id-${key}`) || {}).value || '';
+    if (val.trim()) localStorage.setItem(`dr_sofa_site_id_${key}`, val.trim());
+  });
+
+  toast('✅ Credentials saved!', 'success');
+}
+
+function getSiteId(siteKey) {
+  return localStorage.getItem(`dr_sofa_site_id_${siteKey}`) || localStorage.getItem('dr_sofa_site_id') || '';
 }
 
 async function listWixSites() {
@@ -1496,11 +1533,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const accountId = localStorage.getItem("dr_sofa_account_id");
   const openaiKey = localStorage.getItem("dr_sofa_openai_key");
   
-  const siteId = localStorage.getItem("dr_sofa_site_id");
   if (wixKey) document.getElementById("settings-wix-key").value = wixKey;
   if (accountId) document.getElementById("settings-account-id").value = accountId;
-  if (siteId) document.getElementById("settings-site-id").value = siteId;
   if (openaiKey) document.getElementById("settings-openai-key").value = openaiKey;
+
+  ['sofadisassembly', 'bostonsofadisassembly', 'sofasurgeon', 'furnituretakeapart'].forEach(key => {
+    const val = localStorage.getItem(`dr_sofa_site_id_${key}`);
+    const el = document.getElementById(`site-id-${key}`);
+    if (val && el) el.value = val;
+  });
+
+  // Migrate old single site ID to sofadisassembly if not yet migrated
+  const oldSiteId = localStorage.getItem("dr_sofa_site_id");
+  if (oldSiteId && !localStorage.getItem("dr_sofa_site_id_sofadisassembly")) {
+    localStorage.setItem("dr_sofa_site_id_sofadisassembly", oldSiteId);
+    const el = document.getElementById("site-id-sofadisassembly");
+    if (el) el.value = oldSiteId;
+  }
   
   testConnection();
   loadDashboard();
