@@ -999,6 +999,10 @@
             <label>Wix Account ID</label>
             <input type="text" id="settings-account-id" value="9dbaf23a-904b-4d20-95ce-84089f8b6459">
           </div>
+          <div class="form-group">
+            <label>Wix Site ID</label>
+            <input type="text" id="settings-site-id" placeholder="e.g. a1b2c3d4-...">
+          </div>
         </div>
         <div style="margin-top:20px;">
           <button class="btn btn-primary" onclick="saveCredentials()">Save Credentials</button>
@@ -1404,14 +1408,16 @@ function saveSchedule() {
 function saveCredentials() {
   const wixKey = document.getElementById("settings-wix-key").value;
   const accountId = document.getElementById("settings-account-id").value;
-  
+  const siteId = document.getElementById("settings-site-id").value;
+
   if (!wixKey || !accountId) {
-    toast("⚠️ Fill in both Wix credentials", "error");
+    toast("⚠️ Fill in Wix API Key and Account ID", "error");
     return;
   }
-  
+
   localStorage.setItem("dr_sofa_wix_key", wixKey);
   localStorage.setItem("dr_sofa_account_id", accountId);
+  if (siteId) localStorage.setItem("dr_sofa_site_id", siteId);
   toast('✅ Wix credentials saved!', 'success');
 }
 
@@ -1434,8 +1440,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const accountId = localStorage.getItem("dr_sofa_account_id");
   const openaiKey = localStorage.getItem("dr_sofa_openai_key");
   
+  const siteId = localStorage.getItem("dr_sofa_site_id");
   if (wixKey) document.getElementById("settings-wix-key").value = wixKey;
   if (accountId) document.getElementById("settings-account-id").value = accountId;
+  if (siteId) document.getElementById("settings-site-id").value = siteId;
   if (openaiKey) document.getElementById("settings-openai-key").value = openaiKey;
   
   testConnection();

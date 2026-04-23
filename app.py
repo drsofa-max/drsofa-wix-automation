@@ -26,15 +26,16 @@ def publish_post():
         return '', 204
 
     data = request.get_json()
-    wix_key = data.get('wix_key')
-    account_id = data.get('account_id')
-    site_id = data.get('site_id')
+    # Use env vars if set, otherwise fall back to credentials from request (dashboard localStorage)
+    wix_key = (os.getenv('WIX_API_KEY') or data.get('wix_key') or '').strip()
+    account_id = (os.getenv('WIX_ACCOUNT_ID') or data.get('account_id') or '').strip()
+    site_id = (data.get('site_id') or os.getenv('WIX_SITE_ID') or '').strip().rstrip('/')
     title = data.get('title')
     body = data.get('body')
     meta = data.get('meta_description', '')
 
     if not wix_key or not account_id:
-        return jsonify({'error': 'Missing Wix credentials'}), 400
+        return jsonify({'error': 'Missing Wix credentials: WIX_API_KEY and WIX_ACCOUNT_ID environment variables must be set'}), 400
 
     try:
         # Convert body to Wix rich content format
@@ -59,39 +60,47 @@ def publish_post():
                     "nodes": [{"type": "TEXT", "textData": {"text": para}}]
                 })
 
-        # Use Cloudflare proxy for Wix API access
-        proxy_url = os.getenv('CLOUDFLARE_PROXY_URL', '').rstrip('/')
-
-        if not proxy_url:
-            return jsonify({
-                'error': 'Cloudflare proxy URL not configured. Set CLOUDFLARE_PROXY_URL environment variable.'
-            }), 400
-
-        url = f"{proxy_url}/wix/blog/v3/posts"
         headers = {
             'Authorization': wix_key,
-            'wix-site-id': site_id or '',
-            'wix-account-id': account_id,
             'Content-Type': 'application/json'
         }
+        if site_id:
+            headers['wix-site-id'] = site_id
+        if account_id:
+            headers['wix-account-id'] = account_id
 
         payload = {
-            "post": {
+            "draftPost": {
                 "title": title,
                 "richContent": {"nodes": nodes},
-                "status": "PUBLISHED",
+                "membersOnly": False,
                 "seoData": {
                     "metaDescription": meta
                 }
             }
         }
 
+        # Call Wix Blog v3 API directly from backend (no CORS issues server-side)
+        # Try draft-posts endpoint first (Wix v3 flow: create draft → publish)
+        wix_url = 'https://www.wixapis.com/blog/v3/draft-posts'
+
         response = requests.post(
-            url,
+            wix_url,
             headers=headers,
             json=payload,
             timeout=30
         )
+
+        # If draft created successfully, publish it
+        if response.status_code in [200, 201]:
+            try:
+                draft_data = response.json()
+                draft_id = draft_data.get('draftPost', {}).get('id')
+                if draft_id:
+                    pub_url = f'https://www.wixapis.com/blog/v3/draft-posts/{draft_id}/publish'
+                    requests.post(pub_url, headers=headers, timeout=30)
+            except:
+                pass
 
         if response.status_code in [200, 201]:
             try:
@@ -118,8 +127,8 @@ def publish_post():
             return jsonify({
                 'error': f'Wix API Error: {error_msg}',
                 'status_code': response.status_code,
-                'url': url,
-                'headers_sent': dict(headers)
+                'url': wix_url,
+                'headers_sent': {k: v for k, v in headers.items() if k != 'Authorization'}
             }), response.status_code
 
     except Exception as e:

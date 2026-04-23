@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "falling-resonance-9d20",
+  "compatibility_date": "2026-04-23",
+  "observability": {
+    "enabled": true
+  },
+  "main": "src/index.js",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ]
+}
