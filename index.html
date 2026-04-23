@@ -1040,8 +1040,10 @@
         <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
           <button class="btn btn-primary" onclick="saveCredentials()">Save Credentials</button>
           <button class="btn btn-secondary" onclick="listWixSites()">Find My Site IDs</button>
+          <button class="btn btn-secondary" onclick="checkImageField()">Check Image Field Name</button>
         </div>
         <div id="sites-result" style="margin-top:16px; display:none;"></div>
+        <div id="schema-result" style="margin-top:16px; display:none;"></div>
       </div>
 
       <div class="card">
@@ -1557,6 +1559,53 @@ async function listWixSites() {
         </table>`;
     } else {
       resultEl.innerHTML = `<pre style="color:#f87171; font-size:12px; white-space:pre-wrap;">${JSON.stringify(data, null, 2)}</pre>`;
+    }
+  } catch (err) {
+    resultEl.innerHTML = `<p style="color:#f87171;">Error: ${err.message}</p>`;
+  }
+}
+
+async function checkImageField() {
+  const wixKey = document.getElementById("settings-wix-key").value || localStorage.getItem("dr_sofa_wix_key");
+  const accountId = document.getElementById("settings-account-id").value || localStorage.getItem("dr_sofa_account_id");
+  const siteId = document.getElementById("site-id-sofadisassembly").value || localStorage.getItem("dr_sofa_site_id_sofadisassembly") || localStorage.getItem("dr_sofa_site_id");
+  const resultEl = document.getElementById("schema-result");
+
+  resultEl.style.display = "block";
+  resultEl.innerHTML = '<p style="color:#aaa">Checking collection fields...</p>';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/wix/schema`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wix_key: wixKey, account_id: accountId, site_id: siteId })
+    });
+    const data = await res.json();
+    const fields = data.schema?.collection?.fields || data.schema?.fields || [];
+    if (fields.length > 0) {
+      const imageFields = fields.filter(f => (f.type || '').toLowerCase().includes('image') || (f.key || '').toLowerCase().includes('image') || (f.key || '').toLowerCase().includes('featured'));
+      const rows = fields.map(f => {
+        const isImage = imageFields.includes(f);
+        return `<tr style="${isImage ? 'background:#1a3a1a;' : ''}">
+          <td style="padding:5px 10px; font-family:monospace; color:${isImage ? '#4ade80' : '#ddd'};">${f.key || f.fieldKey || '—'}</td>
+          <td style="padding:5px 10px; color:#aaa;">${f.type || f.fieldType || '—'}</td>
+          <td style="padding:5px 10px; color:#aaa;">${f.displayName || f.label || '—'}</td>
+          ${isImage ? '<td style="padding:5px 10px; color:#4ade80; font-weight:bold;">← IMAGE FIELD</td>' : '<td></td>'}
+        </tr>`;
+      }).join('');
+      resultEl.innerHTML = `
+        <p style="color:#aaa; margin-bottom:8px;">Collection fields (image fields highlighted in green):</p>
+        <table style="width:100%; border-collapse:collapse; font-size:13px;">
+          <thead><tr style="background:#2a2a4e;">
+            <th style="padding:5px 10px; text-align:left; color:#aaa;">Field ID</th>
+            <th style="padding:5px 10px; text-align:left; color:#aaa;">Type</th>
+            <th style="padding:5px 10px; text-align:left; color:#aaa;">Label</th>
+            <th style="padding:5px 10px;"></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } else {
+      resultEl.innerHTML = `<pre style="color:#f87171; font-size:12px; white-space:pre-wrap; overflow:auto;">${JSON.stringify(data, null, 2)}</pre>`;
     }
   } catch (err) {
     resultEl.innerHTML = `<p style="color:#f87171;">Error: ${err.message}</p>`;
