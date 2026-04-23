@@ -1033,7 +1033,9 @@
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-const API_BASE = 'https://drsofa-wix-automation-production.up.railway.app';
+// For local development, use http://localhost:8080
+// For production, use https://drsofa-wix-automation-production.up.railway.app
+const API_BASE = localStorage.getItem('api_base') || 'http://localhost:8080';
 
 let posts = [];
 let currentPost = null;
@@ -1264,6 +1266,7 @@ async function publishPost() {
 
   try {
     // CALL BACKEND INSTEAD OF DIRECT WIX API (avoids CORS)
+    console.log('Publishing to:', `${API_BASE}/api/posts/publish`);
     const response = await fetch(`${API_BASE}/api/posts/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1296,7 +1299,7 @@ async function publishPost() {
       console.error('Publish error:', data);
     }
   } catch(e) {
-    toast('❌ Error: ' + e.message, 'error');
+    toast('❌ Network Error: ' + e.message + ' (API: ' + API_BASE + ')', 'error');
     console.error('Publish error:', e);
   }
 }
