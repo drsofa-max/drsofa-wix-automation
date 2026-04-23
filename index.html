@@ -773,7 +773,7 @@
         <div class="post-preview-title" id="preview-title"></div>
         <div class="post-preview-meta" id="preview-meta"></div>
         <div class="post-preview-body" id="preview-body"></div>
-        <div class="post-actions">
+        <div class="post-actions" style="flex-wrap:wrap; gap:10px;">
           <select id="publish-site-select" style="padding:10px 14px; border-radius:8px; background:#1a1a2e; color:#fff; border:1px solid #333; font-size:14px;">
             <option value="sofadisassembly">SofaDisassembly.com</option>
             <option value="bostonsofadisassembly">BostonSofaDisassembly.com</option>
@@ -783,6 +783,16 @@
           <button class="btn btn-primary" onclick="publishPost()">🚀 Publish to Wix</button>
           <button class="btn btn-secondary" onclick="copyPost()">⎘ Copy Text</button>
           <button class="btn btn-secondary" onclick="regeneratePost()">↻ Regenerate</button>
+        </div>
+        <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <label style="color:#aaa; font-size:13px;">📎 Upload image instead:</label>
+          <input type="file" id="manual-image-upload" accept="image/*" style="display:none;" onchange="handleImageUpload(event)">
+          <button class="btn btn-secondary" style="padding:7px 14px; font-size:13px;" onclick="document.getElementById('manual-image-upload').click()">Choose File</button>
+          <span id="upload-image-name" style="color:#aaa; font-size:12px;"></span>
+          <button class="btn btn-secondary" style="padding:7px 14px; font-size:13px;" onclick="clearUploadedImage()">✕ Clear</button>
+        </div>
+        <div id="upload-image-preview" style="margin-top:10px; display:none;">
+          <img id="upload-image-el" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid #333;" alt="Uploaded image">
         </div>
       </div>
     </section>
@@ -1222,6 +1232,36 @@ function showPreview(post, withImage, siteInfo, topic) {
   posts.unshift({ ...post, created_at: new Date().toISOString(), site: siteInfo.name });
 }
 
+let uploadedImageData = null;
+let uploadedImageMime = 'image/jpeg';
+
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  uploadedImageMime = file.type || 'image/jpeg';
+  document.getElementById('upload-image-name').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    // Strip "data:image/xxx;base64," prefix
+    uploadedImageData = dataUrl.split(',')[1];
+    // Show preview and clear AI image
+    document.getElementById('upload-image-preview').style.display = 'block';
+    document.getElementById('upload-image-el').src = dataUrl;
+    // Clear any AI-generated image so upload takes priority
+    if (currentPost) currentPost.image_url = null;
+    toast('Image selected — will be uploaded on publish', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearUploadedImage() {
+  uploadedImageData = null;
+  document.getElementById('upload-image-name').textContent = '';
+  document.getElementById('upload-image-preview').style.display = 'none';
+  document.getElementById('manual-image-upload').value = '';
+}
+
 async function generateAIImage(title, siteInfo, callback) {
   const openaiKey = localStorage.getItem('dr_sofa_openai_key');
   
@@ -1298,20 +1338,29 @@ async function publishPost() {
     return;
   }
 
-  toast(`🚀 Publishing to ${selectedSite}...`, 'info');
+  const hasImage = uploadedImageData || currentPost.image_url;
+  toast(`🚀 Publishing to ${selectedSite}${hasImage ? ' with image' : ''}...`, 'info');
 
   try {
+    const payload = {
+      wix_key: wixKey,
+      account_id: accountId,
+      site_id: siteId,
+      title: currentPost.title,
+      body: currentPost.body,
+      meta_description: currentPost.meta_description
+    };
+    if (uploadedImageData) {
+      payload.image_data = uploadedImageData;
+      payload.image_mime = uploadedImageMime;
+    } else if (currentPost.image_url) {
+      payload.image_url = currentPost.image_url;
+    }
+
     const response = await fetch(`${API_BASE}/api/posts/publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        wix_key: wixKey,
-        account_id: accountId,
-        site_id: siteId,
-        title: currentPost.title,
-        body: currentPost.body,
-        meta_description: currentPost.meta_description
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await response.json();

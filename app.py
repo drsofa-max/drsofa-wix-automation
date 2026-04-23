@@ -2,6 +2,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 import requests
+import base64
+import io
 from datetime import datetime
 
 app = Flask(__name__)
@@ -18,6 +20,81 @@ CORS(app, resources={
 @app.route('/api/health', methods=['GET', 'OPTIONS'])
 def health():
     return jsonify({'status': 'healthy', 'service': 'drsofa-wix-automation'})
+
+
+def upload_image_to_wix(headers, image_url=None, image_b64=None, mime_type='image/jpeg'):
+    """Upload image to Wix Media Manager. Returns wix media URL or None."""
+    try:
+        if image_url:
+            # Import from external URL (works while OpenAI URL is still valid)
+            resp = requests.post(
+                'https://www.wixapis.com/site-media/v1/files/import',
+                headers=headers,
+                json={'url': image_url, 'mimeType': mime_type, 'fileName': 'blog-image.jpg'},
+                timeout=30
+            )
+            if resp.status_code in [200, 201]:
+                data = resp.json()
+                return (data.get('file') or data).get('url') or (data.get('file') or data).get('id')
+            # Fallback: download then re-upload
+            dl = requests.get(image_url, timeout=20)
+            if dl.status_code != 200:
+                return None
+            image_b64 = base64.b64encode(dl.content).decode()
+            mime_type = dl.headers.get('Content-Type', 'image/jpeg').split(';')[0]
+
+        if image_b64:
+            image_bytes = base64.b64decode(image_b64)
+            # Step 1: get upload URL
+            url_resp = requests.post(
+                'https://www.wixapis.com/site-media/v1/files/generate-upload-url',
+                headers=headers,
+                json={'fileName': 'blog-image.jpg', 'mimeType': mime_type},
+                timeout=15
+            )
+            if url_resp.status_code not in [200, 201]:
+                return None
+            url_data = url_resp.json()
+            upload_url = url_data.get('uploadUrl')
+            if not upload_url:
+                return None
+            # Step 2: upload binary
+            up_resp = requests.put(
+                upload_url,
+                data=image_bytes,
+                headers={'Content-Type': mime_type},
+                timeout=60
+            )
+            if up_resp.status_code in [200, 201]:
+                result = up_resp.json()
+                return (result.get('file') or result).get('url')
+    except Exception:
+        pass
+    return None
+
+
+@app.route('/api/wix/schema', methods=['POST', 'OPTIONS'])
+def get_collection_schema():
+    """Return the blogposts CMS collection schema so we know field names."""
+    if request.method == 'OPTIONS':
+        return '', 204
+    data = request.get_json()
+    wix_key = (os.getenv('WIX_API_KEY') or data.get('wix_key') or '').strip()
+    account_id = (os.getenv('WIX_ACCOUNT_ID') or data.get('account_id') or '').strip()
+    site_id = (data.get('site_id') or os.getenv('WIX_SITE_ID') or '').strip()
+    headers = {'Authorization': wix_key, 'Content-Type': 'application/json'}
+    if site_id:
+        headers['wix-site-id'] = site_id
+    if account_id:
+        headers['wix-account-id'] = account_id
+    try:
+        resp = requests.get(
+            'https://www.wixapis.com/wix-data/v2/collections/blogposts',
+            headers=headers, timeout=15
+        )
+        return jsonify({'status_code': resp.status_code, 'schema': resp.json() if resp.content else {}})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/wix/sites', methods=['POST', 'OPTIONS'])
 def list_wix_sites():
@@ -71,6 +148,9 @@ def publish_post():
     title = data.get('title')
     body = data.get('body')
     meta = data.get('meta_description', '')
+    image_url = data.get('image_url', '')       # AI-generated image URL
+    image_b64 = data.get('image_data', '')      # User-uploaded file as base64
+    image_mime = data.get('image_mime', 'image/jpeg')
 
     if not wix_key or not account_id:
         return jsonify({'error': 'Missing Wix credentials: WIX_API_KEY and WIX_ACCOUNT_ID environment variables must be set'}), 400
@@ -113,16 +193,28 @@ def publish_post():
             for p in nodes
         ).strip() or body
 
+        cms_data = {
+            "title": title,
+            "content": plain_body,
+            "author": "Dr. Sofa",
+            "publishedDate": datetime.utcnow().isoformat() + 'Z'
+        }
+
+        # Upload image to Wix Media Manager if provided
+        wix_image_url = None
+        if image_url or image_b64:
+            wix_image_url = upload_image_to_wix(
+                headers, image_url=image_url or None,
+                image_b64=image_b64 or None, mime_type=image_mime
+            )
+        if wix_image_url:
+            # Try common Wix CMS image field names
+            cms_data['image'] = wix_image_url
+            cms_data['featuredImage'] = wix_image_url
+
         payload = {
             "dataCollectionId": "blogposts",
-            "dataItem": {
-                "data": {
-                    "title": title,
-                    "content": plain_body,
-                    "author": "Dr. Sofa",
-                    "publishedDate": datetime.utcnow().isoformat() + 'Z'
-                }
-            }
+            "dataItem": {"data": cms_data}
         }
 
         wix_url = 'https://www.wixapis.com/wix-data/v2/items'
