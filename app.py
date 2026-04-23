@@ -78,27 +78,24 @@ def publish_post():
             }
         }
 
-        # Try Wix Blog v3 draft-posts endpoint (create draft then publish)
-        proxy_url = os.getenv('CLOUDFLARE_PROXY_URL', '').rstrip('/')
-        if proxy_url:
-            url = f"{proxy_url}/wix/blog/v3/draft-posts"
-        else:
-            url = 'https://www.wixapis.com/blog/v3/draft-posts'
+        # Call Wix Blog v3 API directly from backend (no CORS issues server-side)
+        # Try draft-posts endpoint first (Wix v3 flow: create draft → publish)
+        wix_url = 'https://www.wixapis.com/blog/v3/draft-posts'
 
         response = requests.post(
-            url,
+            wix_url,
             headers=headers,
             json=payload,
             timeout=30
         )
 
-        # If draft created, publish it
+        # If draft created successfully, publish it
         if response.status_code in [200, 201]:
             try:
                 draft_data = response.json()
                 draft_id = draft_data.get('draftPost', {}).get('id')
                 if draft_id:
-                    pub_url = f"{proxy_url}/wix/blog/v3/draft-posts/{draft_id}/publish" if proxy_url else f"https://www.wixapis.com/blog/v3/draft-posts/{draft_id}/publish"
+                    pub_url = f'https://www.wixapis.com/blog/v3/draft-posts/{draft_id}/publish'
                     requests.post(pub_url, headers=headers, timeout=30)
             except:
                 pass
@@ -128,8 +125,8 @@ def publish_post():
             return jsonify({
                 'error': f'Wix API Error: {error_msg}',
                 'status_code': response.status_code,
-                'url': url,
-                'headers_sent': dict(headers)
+                'url': wix_url,
+                'headers_sent': {k: v for k, v in headers.items() if k != 'Authorization'}
             }), response.status_code
 
     except Exception as e:
