@@ -23,54 +23,69 @@ def health():
 
 
 def upload_image_to_wix(headers, image_url=None, image_b64=None, mime_type='image/jpeg'):
-    """Upload image to Wix Media Manager. Returns wix media URL or None."""
+    """
+    Upload image to Wix Media Manager.
+    Returns (wix_url, debug_log) tuple.
+    """
+    log = []
     try:
-        if image_url:
-            # Import from external URL (works while OpenAI URL is still valid)
-            resp = requests.post(
-                'https://www.wixapis.com/site-media/v1/files/import',
-                headers=headers,
-                json={'url': image_url, 'mimeType': mime_type, 'fileName': 'blog-image.jpg'},
-                timeout=30
-            )
-            if resp.status_code in [200, 201]:
-                data = resp.json()
-                return (data.get('file') or data).get('url') or (data.get('file') or data).get('id')
-            # Fallback: download then re-upload
-            dl = requests.get(image_url, timeout=20)
+        # Download image to bytes first (works for both URL and b64)
+        if image_url and not image_b64:
+            log.append(f"Downloading image from URL...")
+            dl = requests.get(image_url, timeout=30)
             if dl.status_code != 200:
-                return None
+                return None, f"Download failed: {dl.status_code}"
             image_b64 = base64.b64encode(dl.content).decode()
-            mime_type = dl.headers.get('Content-Type', 'image/jpeg').split(';')[0]
+            mime_type = dl.headers.get('Content-Type', mime_type).split(';')[0]
+            log.append(f"Downloaded {len(dl.content)} bytes, mime={mime_type}")
 
-        if image_b64:
-            image_bytes = base64.b64decode(image_b64)
-            # Step 1: get upload URL
-            url_resp = requests.post(
-                'https://www.wixapis.com/site-media/v1/files/generate-upload-url',
-                headers=headers,
-                json={'fileName': 'blog-image.jpg', 'mimeType': mime_type},
-                timeout=15
-            )
-            if url_resp.status_code not in [200, 201]:
-                return None
-            url_data = url_resp.json()
-            upload_url = url_data.get('uploadUrl')
-            if not upload_url:
-                return None
-            # Step 2: upload binary
-            up_resp = requests.put(
-                upload_url,
-                data=image_bytes,
-                headers={'Content-Type': mime_type},
-                timeout=60
-            )
-            if up_resp.status_code in [200, 201]:
-                result = up_resp.json()
-                return (result.get('file') or result).get('url')
-    except Exception:
-        pass
-    return None
+        if not image_b64:
+            return None, "No image data"
+
+        image_bytes = base64.b64decode(image_b64)
+        log.append(f"Image size: {len(image_bytes)} bytes")
+
+        # Step 1: Get upload URL from Wix
+        url_resp = requests.post(
+            'https://www.wixapis.com/site-media/v1/files/generate-upload-url',
+            headers={**headers, 'Content-Type': 'application/json'},
+            json={'fileName': 'blog-image.jpg', 'mimeType': mime_type},
+            timeout=15
+        )
+        log.append(f"generate-upload-url: {url_resp.status_code} {url_resp.text[:300]}")
+
+        if url_resp.status_code not in [200, 201]:
+            return None, '\n'.join(log)
+
+        url_data = url_resp.json()
+        upload_url = url_data.get('uploadUrl')
+        upload_token = url_data.get('uploadToken', '')
+        file_id = (url_data.get('file') or {}).get('id') or url_data.get('id', '')
+        log.append(f"upload_url={upload_url}, file_id={file_id}")
+
+        if not upload_url:
+            return None, '\n'.join(log)
+
+        # Step 2: Upload the image binary
+        up_resp = requests.put(
+            upload_url,
+            data=image_bytes,
+            headers={'Content-Type': mime_type},
+            timeout=60
+        )
+        log.append(f"PUT upload: {up_resp.status_code} {up_resp.text[:300]}")
+
+        if up_resp.status_code in [200, 201]:
+            result = up_resp.json() if up_resp.content else {}
+            file_info = result.get('file') or result
+            wix_url = file_info.get('url') or file_info.get('id', '')
+            log.append(f"Wix URL: {wix_url}")
+            return wix_url or None, '\n'.join(log)
+
+    except Exception as e:
+        log.append(f"Exception: {e}")
+
+    return None, '\n'.join(log)
 
 
 @app.route('/api/wix/schema', methods=['POST', 'OPTIONS'])
@@ -202,8 +217,9 @@ def publish_post():
 
         # Upload image to Wix Media Manager if provided
         wix_image_url = None
+        image_debug = ''
         if image_url or image_b64:
-            wix_image_url = upload_image_to_wix(
+            wix_image_url, image_debug = upload_image_to_wix(
                 headers, image_url=image_url or None,
                 image_b64=image_b64 or None, mime_type=image_mime
             )
@@ -235,10 +251,12 @@ def publish_post():
                 return jsonify({
                     'success': True,
                     'message': 'Post published to Wix CMS!',
-                    'data': result_data.get('dataItem', {}).get('data', {})
+                    'data': result_data.get('dataItem', {}).get('data', {}),
+                    'image_uploaded': bool(wix_image_url),
+                    'image_debug': image_debug
                 })
             except Exception:
-                return jsonify({'success': True, 'message': 'Post published to Wix CMS!', 'data': {}})
+                return jsonify({'success': True, 'message': 'Post published to Wix CMS!', 'image_debug': image_debug, 'data': {}})
         else:
             try:
                 error_data = response.json()
