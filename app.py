@@ -26,8 +26,8 @@ def publish_post():
         return '', 204
 
     data = request.get_json()
-    wix_key = os.getenv('WIX_API_KEY')
-    account_id = os.getenv('WIX_ACCOUNT_ID')
+    wix_key = (os.getenv('WIX_API_KEY') or '').strip()
+    account_id = (os.getenv('WIX_ACCOUNT_ID') or '').strip()
     site_id = data.get('site_id')
     title = data.get('title')
     body = data.get('body')
