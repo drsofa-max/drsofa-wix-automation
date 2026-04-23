@@ -62,10 +62,12 @@ def publish_post():
 
         headers = {
             'Authorization': wix_key,
-            'wix-site-id': site_id or '',
-            'wix-account-id': account_id,
             'Content-Type': 'application/json'
         }
+        if site_id:
+            headers['wix-site-id'] = site_id
+        if account_id:
+            headers['wix-account-id'] = account_id
 
         payload = {
             "draftPost": {
