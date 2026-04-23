@@ -207,10 +207,13 @@ def publish_post():
                 headers, image_url=image_url or None,
                 image_b64=image_b64 or None, mime_type=image_mime
             )
+
+        # Use the image URL (either from upload to Wix Media, or directly)
         if wix_image_url:
-            # Try common Wix CMS image field names
-            cms_data['image'] = wix_image_url
             cms_data['featuredImage'] = wix_image_url
+        elif image_url:
+            # Fallback: use the image URL directly (works for OpenAI URLs while fresh)
+            cms_data['featuredImage'] = image_url
 
         payload = {
             "dataCollectionId": "blogposts",
