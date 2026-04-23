@@ -29,7 +29,7 @@ def publish_post():
     # Use env vars if set, otherwise fall back to credentials from request (dashboard localStorage)
     wix_key = (os.getenv('WIX_API_KEY') or data.get('wix_key') or '').strip()
     account_id = (os.getenv('WIX_ACCOUNT_ID') or data.get('account_id') or '').strip()
-    site_id = data.get('site_id')
+    site_id = (data.get('site_id') or os.getenv('WIX_SITE_ID') or '').strip().rstrip('/')
     title = data.get('title')
     body = data.get('body')
     meta = data.get('meta_description', '')
