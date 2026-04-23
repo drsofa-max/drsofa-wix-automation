@@ -60,15 +60,6 @@ def publish_post():
                     "nodes": [{"type": "TEXT", "textData": {"text": para}}]
                 })
 
-        # Use Cloudflare proxy for Wix API access
-        proxy_url = os.getenv('CLOUDFLARE_PROXY_URL', '').rstrip('/')
-
-        if not proxy_url:
-            return jsonify({
-                'error': 'Cloudflare proxy URL not configured. Set CLOUDFLARE_PROXY_URL environment variable.'
-            }), 400
-
-        url = f"{proxy_url}/wix/blog/v3/posts"
         headers = {
             'Authorization': wix_key,
             'wix-site-id': site_id or '',
@@ -80,12 +71,19 @@ def publish_post():
             "post": {
                 "title": title,
                 "richContent": {"nodes": nodes},
-                "status": "PUBLISHED",
+                "membersOnly": False,
                 "seoData": {
                     "metaDescription": meta
                 }
             }
         }
+
+        # Try Wix Blog v3 draft-posts endpoint (create draft then publish)
+        proxy_url = os.getenv('CLOUDFLARE_PROXY_URL', '').rstrip('/')
+        if proxy_url:
+            url = f"{proxy_url}/wix/blog/v3/draft-posts"
+        else:
+            url = 'https://www.wixapis.com/blog/v3/draft-posts'
 
         response = requests.post(
             url,
@@ -93,6 +91,17 @@ def publish_post():
             json=payload,
             timeout=30
         )
+
+        # If draft created, publish it
+        if response.status_code in [200, 201]:
+            try:
+                draft_data = response.json()
+                draft_id = draft_data.get('draftPost', {}).get('id')
+                if draft_id:
+                    pub_url = f"{proxy_url}/wix/blog/v3/draft-posts/{draft_id}/publish" if proxy_url else f"https://www.wixapis.com/blog/v3/draft-posts/{draft_id}/publish"
+                    requests.post(pub_url, headers=headers, timeout=30)
+            except:
+                pass
 
         if response.status_code in [200, 201]:
             try:

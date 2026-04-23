@@ -8,13 +8,16 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
-    // Route Wix blog API requests through this worker
-    if (path.startsWith('/wix/blog/v3/posts')) {
+    // Route all Wix blog API requests through this worker
+    if (path.startsWith('/wix/')) {
       return handleWixBlogRequest(request, path);
     }
 
     // Default 404 for unmatched routes
-    return new Response('Not Found', { status: 404 });
+    return new Response(JSON.stringify({ error: 'Route not found', path }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 
