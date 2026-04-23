@@ -24,47 +24,91 @@ def publish_post():
     """Publish post to Wix (backend handles CORS)"""
     if request.method == 'OPTIONS':
         return '', 204
-    
+
     data = request.get_json()
     wix_key = data.get('wix_key')
     account_id = data.get('account_id')
+    site_id = data.get('site_id')
     title = data.get('title')
     body = data.get('body')
     meta = data.get('meta_description', '')
-    
+
     if not wix_key or not account_id:
         return jsonify({'error': 'Missing Wix credentials'}), 400
-    
+
     try:
-        # Call Wix API from backend (backend can bypass CORS)
-        response = requests.post(
-            'https://www.wixapis.com/v1/items',
-            headers={
+        # Convert body to Wix rich content format
+        paragraphs = [p.strip() for p in body.split('\n\n') if p.strip()]
+
+        nodes = []
+        for para in paragraphs:
+            if para.startswith('##'):
+                # Heading
+                heading_text = para.replace('##', '').strip()
+                nodes.append({
+                    "type": "HEADING",
+                    "nodes": [{"type": "TEXT", "textData": {"text": heading_text}}]
+                })
+            elif para.startswith('#'):
+                # Skip H1 (usually title)
+                continue
+            else:
+                # Regular paragraph
+                nodes.append({
+                    "type": "PARAGRAPH",
+                    "nodes": [{"type": "TEXT", "textData": {"text": para}}]
+                })
+
+        # Use Cloudflare proxy to bypass CORS, or call Wix API directly
+        proxy_url = os.getenv('CLOUDFLARE_PROXY_URL', '').rstrip('/')
+
+        if proxy_url:
+            # Use proxy for CORS bypass
+            url = f"{proxy_url}/wix/blog/v3/posts"
+            headers = {
                 'Authorization': wix_key,
+                'wix-site-id': site_id or '',
+                'wix-account-id': account_id,
+                'Content-Type': 'application/json'
+            }
+        else:
+            # Direct Wix API call (requires CORS headers from Wix or backend proxy)
+            url = 'https://www.wixapis.com/v1/sites/blog/posts'
+            headers = {
+                'Authorization': f'Bearer {wix_key}',
                 'Content-Type': 'application/json',
                 'wix-account-id': account_id
-            },
-            json={
-                'dataItemType': 'BlogPost',
-                'dataItem': {
-                    'data': {
-                        'title': title,
-                        'content': body,
-                        'summary': meta,
-                        'published': True,
-                        'publishedDate': datetime.now().isoformat(),
-                        'slug': title.lower().replace(' ', '-')[:100]
-                    }
+            }
+
+        payload = {
+            "post": {
+                "title": title,
+                "richContent": {"nodes": nodes},
+                "status": "PUBLISHED",
+                "seoData": {
+                    "metaDescription": meta
                 }
-            },
-            timeout=10
+            }
+        }
+
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
         )
-        
+
         if response.status_code in [200, 201]:
-            return jsonify({'success': True, 'message': 'Post published to Wix!', 'data': response.json()})
+            result_data = response.json()
+            return jsonify({
+                'success': True,
+                'message': 'Post published to Wix!',
+                'data': result_data.get('post', {})
+            })
         else:
-            return jsonify({'error': f'Wix API Error: {response.text}'}), response.status_code
-            
+            error_text = response.text if response.text else 'No error details'
+            return jsonify({'error': f'Wix API Error: {error_text}'}), response.status_code
+
     except Exception as e:
         return jsonify({'error': f'Publishing error: {str(e)}'}), 500
 
