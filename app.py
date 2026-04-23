@@ -59,26 +59,21 @@ def publish_post():
                     "nodes": [{"type": "TEXT", "textData": {"text": para}}]
                 })
 
-        # Use Cloudflare proxy to bypass CORS, or call Wix API directly
+        # Use Cloudflare proxy for Wix API access
         proxy_url = os.getenv('CLOUDFLARE_PROXY_URL', '').rstrip('/')
 
-        if proxy_url:
-            # Use proxy for CORS bypass
-            url = f"{proxy_url}/wix/blog/v3/posts"
-            headers = {
-                'Authorization': wix_key,
-                'wix-site-id': site_id or '',
-                'wix-account-id': account_id,
-                'Content-Type': 'application/json'
-            }
-        else:
-            # Direct Wix API call (requires CORS headers from Wix or backend proxy)
-            url = 'https://www.wixapis.com/v1/sites/blog/posts'
-            headers = {
-                'Authorization': f'Bearer {wix_key}',
-                'Content-Type': 'application/json',
-                'wix-account-id': account_id
-            }
+        if not proxy_url:
+            return jsonify({
+                'error': 'Cloudflare proxy URL not configured. Set CLOUDFLARE_PROXY_URL environment variable.'
+            }), 400
+
+        url = f"{proxy_url}/wix/blog/v3/posts"
+        headers = {
+            'Authorization': wix_key,
+            'wix-site-id': site_id or '',
+            'wix-account-id': account_id,
+            'Content-Type': 'application/json'
+        }
 
         payload = {
             "post": {
@@ -99,18 +94,40 @@ def publish_post():
         )
 
         if response.status_code in [200, 201]:
-            result_data = response.json()
-            return jsonify({
-                'success': True,
-                'message': 'Post published to Wix!',
-                'data': result_data.get('post', {})
-            })
+            try:
+                result_data = response.json()
+                return jsonify({
+                    'success': True,
+                    'message': 'Post published to Wix!',
+                    'data': result_data.get('post', {})
+                })
+            except:
+                return jsonify({
+                    'success': True,
+                    'message': 'Post published to Wix!',
+                    'data': {}
+                })
         else:
-            error_text = response.text if response.text else 'No error details'
-            return jsonify({'error': f'Wix API Error: {error_text}'}), response.status_code
+            # Try to parse error response
+            try:
+                error_data = response.json()
+                error_msg = error_data.get('message') or error_data.get('error') or str(error_data)
+            except:
+                error_msg = response.text if response.text else f'HTTP {response.status_code}'
+
+            return jsonify({
+                'error': f'Wix API Error: {error_msg}',
+                'status_code': response.status_code,
+                'url': url,
+                'headers_sent': dict(headers)
+            }), response.status_code
 
     except Exception as e:
-        return jsonify({'error': f'Publishing error: {str(e)}'}), 500
+        import traceback
+        return jsonify({
+            'error': f'Publishing error: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
 
 @app.route('/api/posts/generate', methods=['POST', 'OPTIONS'])
 def generate_post():
