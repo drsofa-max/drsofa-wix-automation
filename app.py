@@ -107,20 +107,25 @@ def publish_post():
         if account_id:
             headers['wix-account-id'] = account_id
 
+        # Site uses Wix CMS (not Wix Blog app) — publish via Wix Data API
+        plain_body = '\n\n'.join(
+            p.get('nodes', [{}])[0].get('textData', {}).get('text', '') if isinstance(p, dict) else ''
+            for p in nodes
+        ).strip() or body
+
         payload = {
-            "draftPost": {
-                "title": title,
-                "richContent": {"nodes": nodes},
-                "membersOnly": False,
-                "seoData": {
-                    "metaDescription": meta
+            "dataCollectionId": "blogposts",
+            "dataItem": {
+                "data": {
+                    "title": title,
+                    "content": plain_body,
+                    "author": "Dr. Sofa",
+                    "publishedDate": datetime.utcnow().isoformat() + 'Z'
                 }
             }
         }
 
-        # Call Wix Blog v3 API directly from backend (no CORS issues server-side)
-        # Try draft-posts endpoint first (Wix v3 flow: create draft → publish)
-        wix_url = 'https://www.wixapis.com/blog/v3/draft-posts'
+        wix_url = 'https://www.wixapis.com/wix-data/v2/items'
 
         response = requests.post(
             wix_url,
@@ -129,31 +134,16 @@ def publish_post():
             timeout=30
         )
 
-        # If draft created successfully, publish it
-        if response.status_code in [200, 201]:
-            try:
-                draft_data = response.json()
-                draft_id = draft_data.get('draftPost', {}).get('id')
-                if draft_id:
-                    pub_url = f'https://www.wixapis.com/blog/v3/draft-posts/{draft_id}/publish'
-                    requests.post(pub_url, headers=headers, timeout=30)
-            except:
-                pass
-
         if response.status_code in [200, 201]:
             try:
                 result_data = response.json()
                 return jsonify({
                     'success': True,
-                    'message': 'Post published to Wix!',
-                    'data': result_data.get('post', {})
+                    'message': 'Post published to Wix CMS!',
+                    'data': result_data.get('dataItem', {}).get('data', {})
                 })
-            except:
-                return jsonify({
-                    'success': True,
-                    'message': 'Post published to Wix!',
-                    'data': {}
-                })
+            except Exception:
+                return jsonify({'success': True, 'message': 'Post published to Wix CMS!', 'data': {}})
         else:
             try:
                 error_data = response.json()
